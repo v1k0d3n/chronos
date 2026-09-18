@@ -1,0 +1,17 @@
+# The MCP server is a separate, optional component. It is not included in
+# config/default so that a Chronos install stays exactly as it was unless an
+# operator opts in to exposing the timeline to AI agents:
+#
+#   oc apply -k config/mcp-server
+resources:
+- rbac.yaml
+- deployment.yaml
+- networkpolicy.yaml
+
+namespace: chronos-system
+namePrefix: chronos-
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+- name: quay.io/bjozsa-redhat/chronos-mcp-server
+  newTag: latest

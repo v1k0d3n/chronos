@@ -1,0 +1,40 @@
+apiVersion: chronos.ocp.run/v1alpha1
+kind: ChronosConfig
+metadata:
+  labels:
+    app.kubernetes.io/name: chronos
+    app.kubernetes.io/managed-by: kustomize
+  # The operator reads the singleton named "cluster".
+  name: cluster
+spec:
+  # Cluster-wide defaults, layered over the shipped built-in defaults.
+  # (Everything here is optional; omit to inherit.)
+  defaults:
+    excludeControllerActors: true   # hide controller/operator reconcile churn
+    excludeNoiseSecrets: true       # hide SA token / dockercfg secret churn
+    excludeNamespaces:              # glob patterns; trailing "*" is a prefix
+      - openshift-*
+      - kube-*
+  namespaceOverrides:
+    # team-a doesn't care about replica scaling — hide those changes there.
+    - namespace: team-a
+      excludeFields:
+        - spec.replicas
+    # team-b wants to see everything, including controller-driven changes.
+    - namespace: team-b
+      excludeControllerActors: false
+    # audit-sensitive namespace: record all metadata EXCEPT annotations churn.
+    - namespace: secure-team
+      excludeFields:
+        - metadata
+      includeFields:
+        - metadata.labels
+        - metadata.ownerReferences
+    # payments keeps a licence key and a whole config file with credentials in
+    # ConfigMaps. Redact them on top of the built-in rules (password, token,
+    # secret, key, private keys, JWTs, URLs with passwords, known token shapes).
+    - namespace: payments
+      redactKeys:
+        - "(?i)^licen[cs]e"
+      redactFields:
+        - /data/config.yaml

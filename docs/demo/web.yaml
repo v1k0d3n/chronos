@@ -1,0 +1,112 @@
+# ── WEB TIER (presentation) ────────────────────────────────────────────────
+# An Apache httpd serving a static storefront page from a ConfigMap. Changing
+# the ConfigMap changes the live website — the heart of the rollout/rollback
+# demo. See web-content-v2.yaml for the "Summer Sale" rollout.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-content
+  labels:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/part-of: acme-storefront
+data:
+  index.html: |
+    <!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Acme Storefront</title>
+      <style>
+        :root { --brand:#2563eb; --accent:#3b82f6; --bg:#0f172a; --card:#1e293b; }
+        * { box-sizing:border-box; margin:0; }
+        body { font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:#e2e8f0; }
+        header { background:var(--brand); padding:20px 32px; display:flex; align-items:center; justify-content:space-between; }
+        header h1 { font-size:22px; letter-spacing:.5px; }
+        .ver { background:rgba(255,255,255,.22); padding:4px 12px; border-radius:999px; font-size:13px; font-weight:700; }
+        .hero { padding:64px 32px 40px; text-align:center; }
+        .hero h2 { font-size:42px; margin-bottom:12px; }
+        .hero p { color:#94a3b8; font-size:18px; }
+        .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:20px; padding:8px 32px 48px; max-width:1000px; margin:0 auto; }
+        .card { background:var(--card); border-radius:14px; padding:24px; border:1px solid #334155; }
+        .card h3 { font-size:16px; }
+        .card .price { color:var(--accent); font-weight:800; font-size:24px; margin-top:10px; }
+        footer { text-align:center; padding:26px; color:#475569; font-size:13px; }
+      </style>
+    </head>
+    <body>
+      <header><h1>&#128717;&#65039; ACME STOREFRONT</h1><span class="ver">v1.0</span></header>
+      <section class="hero">
+        <h2>Everything you need, delivered.</h2>
+        <p>Quality products at honest, everyday prices.</p>
+      </section>
+      <section class="grid">
+        <div class="card"><h3>Wireless Headphones</h3><div class="price">$89</div></div>
+        <div class="card"><h3>Smart Watch</h3><div class="price">$149</div></div>
+        <div class="card"><h3>Laptop Stand</h3><div class="price">$39</div></div>
+        <div class="card"><h3>Desk Lamp</h3><div class="price">$29</div></div>
+      </section>
+      <footer>Acme Storefront &middot; running on OpenShift &middot; watched by Chronos</footer>
+    </body>
+    </html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/part-of: acme-storefront
+spec:
+  replicas: 3
+  selector:
+    matchLabels: { app.kubernetes.io/name: web }
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: web
+        app.kubernetes.io/part-of: acme-storefront
+    spec:
+      containers:
+        - name: httpd
+          image: registry.access.redhat.com/ubi9/httpd-24:latest
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: content
+              mountPath: /var/www/html
+          resources:
+            requests: { cpu: 10m, memory: 64Mi }
+            limits: { cpu: 200m, memory: 256Mi }
+          readinessProbe:
+            httpGet: { path: /, port: 8080 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: content
+          configMap: { name: web-content }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  labels:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/part-of: acme-storefront
+spec:
+  selector: { app.kubernetes.io/name: web }
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: web
+  labels:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/part-of: acme-storefront
+spec:
+  to: { kind: Service, name: web }
+  port: { targetPort: 8080 }
+  tls: { termination: edge, insecureEdgeTerminationPolicy: Redirect }

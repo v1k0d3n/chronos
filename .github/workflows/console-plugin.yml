@@ -1,0 +1,27 @@
+name: Console plugin
+
+on:
+  push:
+    paths: ["console-plugin/**"]
+  pull_request:
+    paths: ["console-plugin/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-build:
+    name: Lint, typecheck, build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: console-plugin
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - run: node .yarn/releases/yarn-4.14.1.cjs install --immutable
+      - run: node .yarn/releases/yarn-4.14.1.cjs eslint src --max-warnings 0
+      - run: node_modules/.bin/tsc --noEmit -p .
+      - run: node .yarn/releases/yarn-4.14.1.cjs build

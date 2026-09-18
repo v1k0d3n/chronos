@@ -1,0 +1,7 @@
+## Append samples of your project ##
+resources:
+- chronos_v1alpha1_changeevent.yaml
+- chronos_v1alpha1_resourcesnapshot.yaml
+- chronos_v1alpha1_revertoperation.yaml
+- chronos_v1alpha1_chronosconfig.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

@@ -1,0 +1,18 @@
+apiVersion: console.openshift.io/v1
+kind: ConsolePlugin
+metadata:
+  name: chronos
+  labels:
+    app: chronos-console-plugin
+    app.kubernetes.io/part-of: chronos
+spec:
+  displayName: Chronos
+  i18n:
+    loadType: Preload
+  backend:
+    type: Service
+    service:
+      name: chronos-console-plugin
+      namespace: chronos-system
+      port: 9443
+      basePath: /

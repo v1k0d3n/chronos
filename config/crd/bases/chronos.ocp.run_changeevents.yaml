@@ -1,0 +1,265 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: changeevents.chronos.ocp.run
+spec:
+  group: chronos.ocp.run
+  names:
+    categories:
+    - chronos
+    kind: ChangeEvent
+    listKind: ChangeEventList
+    plural: changeevents
+    shortNames:
+    - chce
+    singular: changeevent
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.verb
+      name: Verb
+      type: string
+    - jsonPath: .spec.target.kind
+      name: Kind
+      type: string
+    - jsonPath: .spec.target.name
+      name: Target
+      type: string
+    - jsonPath: .spec.actor.username
+      name: Actor
+      type: string
+    - jsonPath: .spec.actor.confidence
+      name: Confidence
+      type: string
+    - jsonPath: .spec.riskLevel
+      name: Risk
+      type: string
+    - jsonPath: .spec.observedAt
+      name: When
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          ChangeEvent is the Schema for the changeevents API. Each ChangeEvent is one
+          point on the Chronos "Time Machine" timeline.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              A ChangeEvent records that something happened. What happened is fixed at
+              the moment it is written; only three things about it may be learned later:
+              who did it (actor and source, filled in by the audit correlator, and
+              write-once — a verified actor is never revised); whether it was
+              subsequently reverted is recorded in status.
+            properties:
+              actor:
+                description: Actor is who performed the change, to the extent it can
+                  be attributed.
+                properties:
+                  confidence:
+                    description: Confidence expresses how reliably this actor is attributed.
+                    enum:
+                    - verified
+                    - partial
+                    - unattributed
+                    type: string
+                  groups:
+                    description: Groups the actor belonged to at request time.
+                    items:
+                      type: string
+                    type: array
+                  impersonatedGroups:
+                    description: ImpersonatedGroups are the groups asserted for the
+                      impersonated identity.
+                    items:
+                      type: string
+                    type: array
+                  impersonatedUser:
+                    description: |-
+                      ImpersonatedUser is the identity the change was made *as*, when the
+                      request used impersonation (kubectl --as). Username stays the
+                      authenticated caller who authorized it.
+
+                      Both are recorded because neither alone is the truth. "kube:admin changed
+                      it" hides which person was acting; "v1k0d3n changed it" hides that they
+                      went through a shared admin account to do so. An auditor needs the pair.
+                    type: string
+                  shared:
+                    description: |-
+                      Shared is true when the identity is a shared/privileged account
+                      (e.g. kubeadmin, system:admin) — flagged as an attribution blind spot.
+                    type: boolean
+                  sourceIP:
+                    description: SourceIP the request originated from (from the audit
+                      event).
+                    type: string
+                  uid:
+                    description: UID of the acting identity, when known.
+                    type: string
+                  userAgent:
+                    description: UserAgent of the client that made the change, e.g.
+                      "oc/4.22.0".
+                    type: string
+                  username:
+                    description: |-
+                      Username as reported by the API server audit log, e.g. "alice" or
+                      "system:serviceaccount:foo:builder". Empty when unattributed.
+                    type: string
+                required:
+                - confidence
+                type: object
+              afterSnapshot:
+                description: |-
+                  AfterSnapshot is the name of the ResourceSnapshot holding the object's
+                  state after this change. Empty for delete events.
+                type: string
+              beforeSnapshot:
+                description: |-
+                  BeforeSnapshot is the name of the ResourceSnapshot holding the object's
+                  state prior to this change, in the same namespace as this ChangeEvent.
+                  Empty for create events.
+                type: string
+              changedFields:
+                description: |-
+                  ChangedFields lists the field paths that changed, e.g.
+                  ["spec.replicas", "spec.template.spec.containers[0].image"]. Safe to show
+                  even to users who cannot see the values.
+                items:
+                  type: string
+                type: array
+              observedAt:
+                description: |-
+                  ObservedAt is when the change occurred — the audit requestReceivedTimestamp
+                  when correlated, otherwise the time the watch observed it.
+                format: date-time
+                type: string
+              redacted:
+                description: |-
+                  Redacted is true when sensitive values were stripped from the referenced
+                  snapshots (e.g. the target is a Secret). Reverts of redacted changes may
+                  require manual steps.
+                type: boolean
+              riskLevel:
+                description: RiskLevel is a heuristic severity for filtering and alerting.
+                enum:
+                - low
+                - medium
+                - high
+                - critical
+                type: string
+              source:
+                description: Source records how the change was observed (watch, audit,
+                  or correlated).
+                enum:
+                - watch
+                - audit
+                - correlated
+                - revert
+                type: string
+              summary:
+                description: |-
+                  Summary is a one-line, redaction-safe description of the change,
+                  e.g. "spec.replicas 3 -> 0".
+                type: string
+              target:
+                description: Target is the object that changed.
+                properties:
+                  apiVersion:
+                    description: APIVersion of the target object, e.g. "apps/v1" or
+                      "v1".
+                    type: string
+                  kind:
+                    description: Kind of the target object, e.g. "Deployment".
+                    type: string
+                  name:
+                    description: Name of the target object.
+                    type: string
+                  namespace:
+                    description: Namespace of the target object. Empty for cluster-scoped
+                      objects.
+                    type: string
+                  resourceVersion:
+                    description: ResourceVersion of the target at the moment referenced.
+                    type: string
+                  uid:
+                    description: |-
+                      UID pins the target's identity across delete/recreate cycles, so a
+                      timeline can distinguish "the same object edited" from "deleted and a new
+                      one created with the same name".
+                    type: string
+                required:
+                - apiVersion
+                - kind
+                - name
+                type: object
+              verb:
+                description: Verb is the API operation that produced the change.
+                enum:
+                - create
+                - update
+                - patch
+                - delete
+                type: string
+            required:
+            - actor
+            - observedAt
+            - source
+            - target
+            - verb
+            type: object
+            x-kubernetes-validations:
+            - message: a ChangeEvent's record of what changed is immutable
+              rule: self.observedAt == oldSelf.observedAt && self.verb == oldSelf.verb
+                && self.target == oldSelf.target && (has(self.riskLevel) == has(oldSelf.riskLevel)
+                && (!has(self.riskLevel) || self.riskLevel == oldSelf.riskLevel))
+                && (has(self.summary) == has(oldSelf.summary) && (!has(self.summary)
+                || self.summary == oldSelf.summary)) && (has(self.changedFields) ==
+                has(oldSelf.changedFields) && (!has(self.changedFields) || self.changedFields
+                == oldSelf.changedFields)) && (has(self.beforeSnapshot) == has(oldSelf.beforeSnapshot)
+                && (!has(self.beforeSnapshot) || self.beforeSnapshot == oldSelf.beforeSnapshot))
+                && (has(self.afterSnapshot) == has(oldSelf.afterSnapshot) && (!has(self.afterSnapshot)
+                || self.afterSnapshot == oldSelf.afterSnapshot)) && (has(self.redacted)
+                == has(oldSelf.redacted) && (!has(self.redacted) || self.redacted
+                == oldSelf.redacted))
+            - message: a verified actor is write-once
+              rule: oldSelf.actor.confidence != 'verified' || (self.actor == oldSelf.actor
+                && self.source == oldSelf.source)
+          status:
+            description: ChangeEventStatus captures whether this change has since
+              been reverted.
+            properties:
+              revertOperation:
+                description: |-
+                  RevertOperation is the name of the RevertOperation that reverted this
+                  change, in the same namespace.
+                type: string
+              reverted:
+                description: Reverted is true once a RevertOperation has undone this
+                  change.
+                type: boolean
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

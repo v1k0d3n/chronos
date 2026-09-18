@@ -1,0 +1,21 @@
+[
+  {
+    "type": "console.page/route",
+    "properties": {
+      "exact": true,
+      "path": "/chronos/timeline",
+      "component": { "$codeRef": "ChronosTimelinePage" }
+    }
+  },
+  {
+    "type": "console.navigation/href",
+    "properties": {
+      "id": "chronos-timeline",
+      "name": "Timeline",
+      "href": "/chronos/timeline",
+      "perspective": "admin",
+      "section": "observe",
+      "insertAfter": "dashboards"
+    }
+  }
+]

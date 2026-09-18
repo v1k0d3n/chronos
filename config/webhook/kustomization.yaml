@@ -1,0 +1,20 @@
+# The admission webhook is not optional. It records who asked for each revert,
+# and the operator refuses to perform any revert unless this configuration is
+# present and cannot be bypassed. See internal/controller/revert_authz.go.
+resources:
+- manifests.yaml
+- service.yaml
+
+configurations:
+- kustomizeconfig.yaml
+
+patches:
+# manifests.yaml is generated, so the annotation is added here rather than there.
+# service-ca injects the CA bundle the API server uses to verify the webhook.
+- target:
+    kind: MutatingWebhookConfiguration
+  patch: |-
+    - op: add
+      path: /metadata/annotations
+      value:
+        service.beta.openshift.io/inject-cabundle: "true"

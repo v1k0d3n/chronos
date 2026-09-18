@@ -1,0 +1,39 @@
+apiVersion: chronos.ocp.run/v1alpha1
+kind: ResourceSnapshot
+metadata:
+  labels:
+    app.kubernetes.io/name: chronos
+    app.kubernetes.io/managed-by: kustomize
+  # Snapshot naming convention: <kind>-<name>-<resourceVersion>.
+  name: deployment-payments-48209
+spec:
+  capturedAt: "2026-07-01T13:20:59Z"
+  redacted: false
+  revertable: true
+  target:
+    apiVersion: apps/v1
+    kind: Deployment
+    namespace: team-a
+    name: payments
+    uid: 6f1c9e0a-2b7d-4a1e-9c33-1f2a4b6c8d0e
+    resourceVersion: "48209"
+  # content is the redacted object manifest, inlined for the POC.
+  content:
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: payments
+      namespace: team-a
+    spec:
+      replicas: 3
+      selector:
+        matchLabels:
+          app: payments
+      template:
+        metadata:
+          labels:
+            app: payments
+        spec:
+          containers:
+            - name: payments
+              image: quay.io/team-a/payments:2.4.1

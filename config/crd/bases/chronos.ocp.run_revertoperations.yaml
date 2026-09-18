@@ -1,0 +1,286 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: revertoperations.chronos.ocp.run
+spec:
+  group: chronos.ocp.run
+  names:
+    categories:
+    - chronos
+    kind: RevertOperation
+    listKind: RevertOperationList
+    plural: revertoperations
+    shortNames:
+    - revop
+    singular: revertoperation
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.target.kind
+      name: Kind
+      type: string
+    - jsonPath: .spec.target.name
+      name: Target
+      type: string
+    - jsonPath: .status.appliedStrategy
+      name: Strategy
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: RevertOperation is the Schema for the revertoperations API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              A RevertOperation is a request made once, by one person, for one change.
+              If its spec could be edited after admission, the identity recorded on it
+              would no longer describe who asked for what is now being requested.
+            properties:
+              changeEventRef:
+                description: |-
+                  ChangeEventRef names a ChangeEvent to undo; the object is restored to that
+                  event's BeforeSnapshot. Mutually exclusive with ToSnapshot.
+                type: string
+              dryRun:
+                description: DryRun computes and reports the revert diff without mutating
+                  the cluster.
+                type: boolean
+              force:
+                description: |-
+                  Force permits an escalation to DeleteAndRecreate when immutable fields
+                  differ. Without it, such reverts fail rather than delete the object.
+                type: boolean
+              requestedBy:
+                description: |-
+                  RequestedBy is who asked for this revert. Clients do not set it: the
+                  admission webhook writes it from the identity the API server
+                  authenticated, replacing anything supplied in the request. The controller
+                  performs the revert only if this identity could have made the same change
+                  to the target directly.
+                properties:
+                  extra:
+                    additionalProperties:
+                      items:
+                        type: string
+                      type: array
+                    description: |-
+                      Extra holds authenticator-specific attributes (for example OAuth scopes),
+                      which authorizers may take into account.
+                    type: object
+                  groups:
+                    description: Groups are the groups the user belonged to when the
+                      request was made.
+                    items:
+                      type: string
+                    type: array
+                    x-kubernetes-list-type: atomic
+                  uid:
+                    description: UID is the user's unique identifier, where the authenticator
+                      provides one.
+                    type: string
+                  username:
+                    description: Username is the authenticated user name.
+                    type: string
+                required:
+                - username
+                type: object
+              strategy:
+                default: Auto
+                description: Strategy selects how the revert is applied. Defaults
+                  to Auto.
+                enum:
+                - ServerSideApply
+                - DeleteAndRecreate
+                - Auto
+                type: string
+              target:
+                description: Target is the object to revert. Required.
+                properties:
+                  apiVersion:
+                    description: APIVersion of the target object, e.g. "apps/v1" or
+                      "v1".
+                    type: string
+                  kind:
+                    description: Kind of the target object, e.g. "Deployment".
+                    type: string
+                  name:
+                    description: Name of the target object.
+                    type: string
+                  namespace:
+                    description: Namespace of the target object. Empty for cluster-scoped
+                      objects.
+                    type: string
+                  resourceVersion:
+                    description: ResourceVersion of the target at the moment referenced.
+                    type: string
+                  uid:
+                    description: |-
+                      UID pins the target's identity across delete/recreate cycles, so a
+                      timeline can distinguish "the same object edited" from "deleted and a new
+                      one created with the same name".
+                    type: string
+                required:
+                - apiVersion
+                - kind
+                - name
+                type: object
+              toSnapshot:
+                description: |-
+                  ToSnapshot names a ResourceSnapshot to restore the object to directly.
+                  Mutually exclusive with ChangeEventRef.
+                type: string
+            required:
+            - target
+            type: object
+            x-kubernetes-validations:
+            - message: spec is immutable; create a new RevertOperation instead
+              rule: self == oldSelf
+          status:
+            description: RevertOperationStatus reports the outcome of a revert.
+            properties:
+              appliedStrategy:
+                description: |-
+                  AppliedStrategy is the strategy actually used (relevant when Spec.Strategy
+                  was Auto).
+                enum:
+                - ServerSideApply
+                - DeleteAndRecreate
+                - Auto
+                type: string
+              completedAt:
+                description: CompletedAt is when the revert reached a terminal phase.
+                format: date-time
+                type: string
+              conditions:
+                description: Conditions represent the latest observations of the revert's
+                  state.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              diff:
+                description: |-
+                  Diff is a redaction-safe summary of what the revert changed (or would
+                  change, for a dry run).
+                type: string
+              manualStepsRequired:
+                description: |-
+                  ManualStepsRequired lists actions a human must take to complete the
+                  revert — chiefly re-supplying redacted Secret values, which Chronos
+                  deliberately never stores.
+                items:
+                  type: string
+                type: array
+              message:
+                description: Message is a human-readable status detail.
+                type: string
+              observedGeneration:
+                description: ObservedGeneration is the .metadata.generation the status
+                  reflects.
+                format: int64
+                type: integer
+              phase:
+                description: Phase is the current lifecycle phase.
+                enum:
+                - Pending
+                - Validating
+                - InProgress
+                - Succeeded
+                - Failed
+                - Skipped
+                type: string
+              resultingChangeEvent:
+                description: |-
+                  ResultingChangeEvent is the name of the ChangeEvent recorded for this
+                  revert itself.
+                type: string
+              startedAt:
+                description: StartedAt is when actuation began.
+                format: date-time
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

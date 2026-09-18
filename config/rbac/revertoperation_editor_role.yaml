@@ -1,0 +1,28 @@
+# Lets a user request a revert. Creating the request is the whole ability: the
+# operator decides whether to carry it out, based on what the requester could
+# do directly. A request's spec is immutable, and deleting one would hide that
+# it was made, so neither is granted here.
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: chronos
+    app.kubernetes.io/managed-by: kustomize
+  name: revertoperation-editor-role
+rules:
+- apiGroups:
+  - chronos.ocp.run
+  resources:
+  - revertoperations
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+- apiGroups:
+  - chronos.ocp.run
+  resources:
+  - revertoperations/status
+  verbs:
+  - get

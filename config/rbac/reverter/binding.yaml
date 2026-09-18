@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/name: chronos
+    app.kubernetes.io/managed-by: kustomize
+    chronos.ocp.run/role: reverter
+  name: reverter
+  namespace: system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: chronos
+    app.kubernetes.io/managed-by: kustomize
+  name: reverter-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: reverter-role
+subjects:
+- kind: ServiceAccount
+  name: reverter
+  namespace: system

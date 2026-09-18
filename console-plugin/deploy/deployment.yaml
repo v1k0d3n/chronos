@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chronos-console-plugin
+  namespace: chronos-system
+  labels:
+    app: chronos-console-plugin
+    app.kubernetes.io/part-of: chronos
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chronos-console-plugin
+  template:
+    metadata:
+      labels:
+        app: chronos-console-plugin
+        app.kubernetes.io/part-of: chronos
+    spec:
+      containers:
+        - name: chronos-console-plugin
+          # Overridden at deploy time to the internal registry / quay image.
+          image: quay.io/bjozsa-redhat/chronos-console-plugin:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9443
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 10m
+              memory: 50Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: chronos-console-plugin-cert
+              readOnly: true
+              mountPath: /var/cert
+            - name: nginx-conf
+              readOnly: true
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+      volumes:
+        - name: chronos-console-plugin-cert
+          secret:
+            secretName: chronos-console-plugin-cert
+            defaultMode: 420
+        - name: nginx-conf
+          configMap:
+            name: chronos-console-plugin
+            defaultMode: 420
+      restartPolicy: Always
+      dnsPolicy: ClusterFirst
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 25%
+      maxSurge: 25%

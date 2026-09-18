@@ -1,0 +1,4 @@
+resources:
+- policy.yaml
+configurations:
+- kustomizeconfig.yaml

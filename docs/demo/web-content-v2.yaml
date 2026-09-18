@@ -1,0 +1,56 @@
+# The "Summer Sale" rollout. Apply this during the demo to change the live
+# website (Chronos captures it as an update with a clean before/after diff):
+#   oc apply -f docs/demo/web-content-v2.yaml -n demo-chronos
+#   oc rollout restart deploy/web -n demo-chronos
+# Then roll it back from the Chronos console — the site reverts to v1.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-content
+  namespace: demo-chronos
+  labels:
+    app.kubernetes.io/name: web
+    app.kubernetes.io/part-of: acme-storefront
+data:
+  index.html: |
+    <!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Acme Storefront &mdash; Summer Sale</title>
+      <style>
+        :root { --brand:#ea580c; --accent:#f97316; --bg:#1a0f02; --card:#2a1a08; }
+        * { box-sizing:border-box; margin:0; }
+        body { font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:#fde68a; }
+        header { background:var(--brand); padding:20px 32px; display:flex; align-items:center; justify-content:space-between; }
+        header h1 { font-size:22px; letter-spacing:.5px; color:#fff; }
+        .ver { background:rgba(255,255,255,.25); padding:4px 12px; border-radius:999px; font-size:13px; font-weight:700; color:#fff; }
+        .banner { background:#facc15; color:#7c2d12; text-align:center; padding:10px; font-weight:800; letter-spacing:1px; }
+        .hero { padding:64px 32px 40px; text-align:center; }
+        .hero h2 { font-size:46px; margin-bottom:12px; color:#fb923c; }
+        .hero p { color:#d97706; font-size:18px; }
+        .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:20px; padding:8px 32px 48px; max-width:1000px; margin:0 auto; }
+        .card { background:var(--card); border-radius:14px; padding:24px; border:1px solid #7c2d12; }
+        .card h3 { font-size:16px; color:#fed7aa; }
+        .card .price { color:var(--accent); font-weight:800; font-size:24px; margin-top:10px; }
+        .card .was { color:#a16207; text-decoration:line-through; font-size:14px; margin-left:8px; }
+        footer { text-align:center; padding:26px; color:#92400e; font-size:13px; }
+      </style>
+    </head>
+    <body>
+      <header><h1>&#9728;&#65039; ACME STOREFRONT</h1><span class="ver">v2.0</span></header>
+      <div class="banner">&#9728;&#65039; SUMMER SALE &mdash; 30% OFF EVERYTHING &#9728;&#65039;</div>
+      <section class="hero">
+        <h2>Summer blowout is here!</h2>
+        <p>Limited time only &mdash; prices slashed storewide.</p>
+      </section>
+      <section class="grid">
+        <div class="card"><h3>Wireless Headphones</h3><div class="price">$62<span class="was">$89</span></div></div>
+        <div class="card"><h3>Smart Watch</h3><div class="price">$104<span class="was">$149</span></div></div>
+        <div class="card"><h3>Laptop Stand</h3><div class="price">$27<span class="was">$39</span></div></div>
+        <div class="card"><h3>Desk Lamp</h3><div class="price">$20<span class="was">$29</span></div></div>
+      </section>
+      <footer>Acme Storefront &middot; running on OpenShift &middot; watched by Chronos</footer>
+    </body>
+    </html>

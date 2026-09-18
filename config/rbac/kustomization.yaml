@@ -1,0 +1,42 @@
+resources:
+# All RBAC will be applied under this service account in
+# the deployment namespace. You may comment out this resource
+# if your manager will use a service account that exists at
+# runtime. Be sure to update RoleBinding and ClusterRoleBinding
+# subjects if changing service account names.
+# Chronos runs as three processes under three ServiceAccounts, each holding
+# only what its role needs. The roles are generated from the code of each role
+# (see the manifests target in the Makefile); the bindings are here.
+- watcher/role.yaml
+- watcher/binding.yaml
+- correlator/role.yaml
+- correlator/binding.yaml
+- reverter/role.yaml
+- reverter/binding.yaml
+- leader_election_role.yaml
+- leader_election_role_binding.yaml
+# The following RBAC configurations are used to protect
+# the metrics endpoint with authn/authz. These configurations
+# ensure that only authorized users and service accounts
+# can access the metrics endpoint. Comment the following
+# permissions if you want to disable this protection.
+# More info: https://book.kubebuilder.io/reference/metrics.html
+- metrics_auth_role.yaml
+- metrics_auth_role_binding.yaml
+- metrics_reader_role.yaml
+# For each CRD, "Admin", "Editor" and "Viewer" roles are scaffolded by
+# default, aiding admins in cluster management. Those roles are
+# not used by the chronos itself. You can comment the following lines
+# if you do not want those helpers be installed with your Project.
+- chronosconfig_admin_role.yaml
+- chronosconfig_editor_role.yaml
+- chronosconfig_viewer_role.yaml
+- revertoperation_admin_role.yaml
+- revertoperation_editor_role.yaml
+- revertoperation_viewer_role.yaml
+# ChangeEvents and ResourceSnapshots are written by Chronos alone. There are no
+# editor or admin roles for them on purpose, and the ledger policy in
+# ../ledger-policy refuses writes from anyone else even if such a role is bound.
+- resourcesnapshot_viewer_role.yaml
+- changeevent_viewer_role.yaml
+

@@ -1,0 +1,28 @@
+# Build the chronos-mcp binary.
+#
+# Separate from the operator image on purpose: the two run under different
+# ServiceAccounts with very different permissions, and shipping them as one
+# image invites running the wrong one.
+FROM golang:1.25 AS builder
+ARG TARGETOS
+ARG TARGETARCH
+
+WORKDIR /workspace
+COPY go.mod go.mod
+COPY go.sum go.sum
+RUN go mod download
+
+COPY cmd/mcp-server/ cmd/mcp-server/
+COPY api/ api/
+COPY internal/ internal/
+
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
+    go build -a -o chronos-mcp cmd/mcp-server/main.go
+
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /
+COPY --from=builder /workspace/chronos-mcp .
+USER 65532:65532
+
+EXPOSE 8080
+ENTRYPOINT ["/chronos-mcp"]

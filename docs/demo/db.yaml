@@ -1,0 +1,78 @@
+# ── DB TIER (data) ─────────────────────────────────────────────────────────
+# PostgreSQL with ephemeral storage. The credentials live in a Secret — Chronos
+# captures Secret changes (e.g. a password rotation) but NEVER stores the value,
+# so the demo shows "the password changed" without leaking it.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-credentials
+  labels:
+    app.kubernetes.io/name: db
+    app.kubernetes.io/part-of: acme-storefront
+type: Opaque
+stringData:
+  # Demo-only, throwaway values. Chronos redacts these at capture time.
+  database-user: storefront
+  database-name: storefront
+  database-password: demo-not-a-real-password
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db
+  labels:
+    app.kubernetes.io/name: db
+    app.kubernetes.io/part-of: acme-storefront
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: db }
+  strategy: { type: Recreate }
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: db
+        app.kubernetes.io/part-of: acme-storefront
+    spec:
+      containers:
+        - name: postgresql
+          # Red Hat's PostgreSQL lives on registry.redhat.io (databases aren't
+          # published under the public ubi9/ path). OpenShift clusters carry the
+          # registry.redhat.io pull secret by default, so this pulls out of the
+          # box on an entitled cluster.
+          image: registry.redhat.io/rhel9/postgresql-15:latest
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRESQL_USER
+              valueFrom: { secretKeyRef: { name: db-credentials, key: database-user } }
+            - name: POSTGRESQL_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-credentials, key: database-password } }
+            - name: POSTGRESQL_DATABASE
+              valueFrom: { secretKeyRef: { name: db-credentials, key: database-name } }
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/pgsql/data
+          resources:
+            requests: { cpu: 20m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+          readinessProbe:
+            tcpSocket: { port: 5432 }
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  labels:
+    app.kubernetes.io/name: db
+    app.kubernetes.io/part-of: acme-storefront
+spec:
+  selector: { app.kubernetes.io/name: db }
+  ports:
+    - port: 5432
+      targetPort: 5432

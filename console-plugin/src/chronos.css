@@ -1,0 +1,415 @@
+.chronos-day-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+  margin: 12px 0 6px;
+}
+
+.chronos-feed {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(127, 127, 127, 0.25);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.chronos-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(127, 127, 127, 0.18);
+  padding: 8px 12px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.chronos-row:last-child {
+  border-bottom: none;
+}
+
+.chronos-row:hover {
+  background: rgba(127, 127, 127, 0.08);
+}
+
+.chronos-row--selected {
+  background: rgba(56, 138, 221, 0.14);
+  box-shadow: inset 3px 0 0 rgba(56, 138, 221, 0.9);
+}
+
+.chronos-row-main,
+.chronos-row-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chronos-row-sub {
+  margin-top: 6px;
+}
+
+.chronos-time {
+  font-family: monospace;
+  font-size: 12px;
+  opacity: 0.7;
+  min-width: 42px;
+}
+
+.chronos-target {
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.chronos-ns,
+.chronos-actor {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.chronos-summary {
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.chronos-redacted {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(127, 127, 127, 0.18);
+}
+
+.chronos-spacer {
+  flex: 1 1 auto;
+}
+
+.chronos-cal-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.chronos-cal-month {
+  font-size: 14px;
+  min-width: 130px;
+  text-align: center;
+}
+
+.chronos-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.chronos-cal-weekday {
+  font-size: 11px;
+  text-align: center;
+  opacity: 0.6;
+  padding-bottom: 2px;
+}
+
+.chronos-cal-cell {
+  min-height: 58px;
+  border-radius: 6px;
+  border: 1px solid rgba(127, 127, 127, 0.2);
+  background: transparent;
+  padding: 4px 6px;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  display: flex;
+  flex-direction: column;
+}
+
+.chronos-cal-cell--selected {
+  box-shadow: 0 0 0 2px rgba(56, 138, 221, 0.9);
+}
+
+.chronos-cal-daynum {
+  font-size: 11px;
+}
+
+.chronos-cal-count {
+  font-size: 10px;
+  margin-top: 4px;
+  opacity: 0.85;
+}
+
+.chronos-risk-low {
+  background: rgba(99, 153, 34, 0.18);
+}
+.chronos-risk-medium {
+  background: rgba(186, 117, 23, 0.22);
+}
+.chronos-risk-high {
+  background: rgba(201, 49, 49, 0.22);
+}
+.chronos-risk-critical {
+  background: rgba(163, 45, 45, 0.4);
+}
+
+.chronos-cal-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  opacity: 0.8;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.chronos-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.chronos-cal-daypanel {
+  margin-top: 12px;
+  border: 1px solid rgba(127, 127, 127, 0.25);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.chronos-drawer-badges {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.chronos-drawer-summary {
+  font-family: monospace;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.chronos-drawer-section {
+  margin-top: 16px;
+}
+
+.chronos-fieldlist {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.chronos-drawer-actions {
+  margin-top: 20px;
+}
+
+.chronos-diff {
+  margin: 0;
+  padding: 8px;
+  border: 1px solid rgba(127, 127, 127, 0.25);
+  border-radius: 6px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre;
+  box-sizing: border-box;
+}
+
+/* Keep the docked diff a fixed height (its defaultSize); the diff scrolls
+   inside it. Without min-height:0 the flex items grow to fit the content,
+   which moved the divider to a different spot for every object. */
+.chronos-diff-panelcontent,
+.chronos-diff-panelbody {
+  min-height: 0;
+}
+
+.chronos-diff-panelbody {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.chronos-version-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(127, 127, 127, 0.2);
+  flex: 0 0 auto;
+}
+
+.chronos-version-label {
+  opacity: 0.6;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 6px;
+}
+
+.chronos-version-arrow {
+  opacity: 0.6;
+}
+
+.chronos-version-spacer {
+  flex: 1 1 auto;
+}
+
+.chronos-drawer-hint {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.chronos-diffpanel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 1 1 auto;
+}
+
+.chronos-diffpanel-body {
+  display: flex;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.chronos-toc {
+  width: 260px;
+  flex: 0 0 260px;
+  overflow: auto;
+  min-height: 0;
+  padding-right: 8px;
+  border-right: 1px solid rgba(127, 127, 127, 0.2);
+}
+
+.chronos-toc-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+  margin-bottom: 6px;
+}
+
+.chronos-toc-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 3px 6px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.chronos-toc-item:hover {
+  background: rgba(56, 138, 221, 0.14);
+}
+
+.chronos-diffpanel-diff {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.chronos-diff-num {
+  width: 34px;
+  flex: 0 0 34px;
+  text-align: right;
+  padding-right: 8px;
+  opacity: 0.45;
+  user-select: none;
+}
+
+.chronos-diff-gap {
+  padding: 2px 6px;
+  opacity: 0.5;
+  font-style: italic;
+  background: rgba(127, 127, 127, 0.06);
+}
+
+.chronos-diff-flash {
+  outline: 2px solid rgba(56, 138, 221, 0.9);
+  outline-offset: -2px;
+}
+
+.chronos-manifest-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+/* Height containment: bound the timeline page to the console's scroll area so
+   the bottom diff dock docks to the viewport bottom (not the bottom of the
+   full, tall timeline content). Without this the page grows to content height
+   and the dock lands at a different screen position for every object. */
+.pf-v6-c-page__main-section:has(> .chronos-timeline-page) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.chronos-timeline-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.chronos-timeline-page > .pf-v6-c-page__main-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.chronos-timeline-page .pf-m-panel-bottom {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+}
+
+.chronos-timeline-page .pf-v6-c-drawer__main {
+  min-height: 0;
+}
+
+.chronos-diff-line {
+  display: flex;
+}
+
+.chronos-diff-gutter {
+  width: 14px;
+  flex: 0 0 14px;
+  opacity: 0.7;
+  user-select: none;
+}
+
+.chronos-diff-text {
+  white-space: pre;
+}
+
+.chronos-diff-add {
+  background: rgba(99, 153, 34, 0.18);
+}
+
+.chronos-diff-del {
+  background: rgba(201, 49, 49, 0.2);
+}
+
+.chronos-diff-empty {
+  font-size: 12px;
+  opacity: 0.6;
+  padding: 8px 0;
+}

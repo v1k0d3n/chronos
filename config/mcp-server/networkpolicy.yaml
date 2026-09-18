@@ -1,0 +1,30 @@
+# Only the router and namespaces that say they host MCP clients may reach the
+# server. Everything that talks to it carries a bearer token, and this is the
+# first thing that limits who can even try one.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mcp-server
+  labels:
+    app.kubernetes.io/name: chronos
+    app.kubernetes.io/component: mcp-server
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: chronos
+      app.kubernetes.io/component: mcp-server
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        # In-cluster agents: label their namespace
+        #   oc label namespace <ns> chronos.ocp.run/mcp-client=true
+        - namespaceSelector:
+            matchLabels:
+              chronos.ocp.run/mcp-client: "true"
+        # The OpenShift router, for callers outside the cluster via a Route.
+        - namespaceSelector:
+            matchLabels:
+              policy-group.network.openshift.io/ingress: ""
+      ports:
+        - protocol: TCP
+          port: 8443

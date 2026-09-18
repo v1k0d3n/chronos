@@ -1,0 +1,205 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: resourcesnapshots.chronos.ocp.run
+spec:
+  group: chronos.ocp.run
+  names:
+    categories:
+    - chronos
+    kind: ResourceSnapshot
+    listKind: ResourceSnapshotList
+    plural: resourcesnapshots
+    shortNames:
+    - rsnap
+    singular: resourcesnapshot
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.target.kind
+      name: Kind
+      type: string
+    - jsonPath: .spec.target.name
+      name: Target
+      type: string
+    - jsonPath: .spec.redacted
+      name: Redacted
+      type: boolean
+    - jsonPath: .spec.revertable
+      name: Revertable
+      type: boolean
+    - jsonPath: .spec.capturedAt
+      name: Captured
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ResourceSnapshot is the Schema for the resourcesnapshots API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              A snapshot is evidence: what an object looked like at one moment. Evidence
+              that can be edited is not evidence, so nothing in spec may change once
+              written — not even by Chronos.
+            properties:
+              capturedAt:
+                description: CapturedAt is when the snapshot was taken.
+                format: date-time
+                type: string
+              content:
+                description: |-
+                  Content is the redacted object manifest, inlined for the POC. Sensitive
+                  fields have been removed and recorded in Redactions. Nil if the content
+                  was offloaded to ContentRef instead.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              contentRef:
+                description: |-
+                  ContentRef points at snapshot content stored outside the CRD when it is
+                  too large to inline. Mutually exclusive with Content.
+                properties:
+                  backend:
+                    description: Backend identifies the store, e.g. "pvc" or "s3".
+                    type: string
+                  key:
+                    description: Key is the path/object key within the backend.
+                    type: string
+                  sizeBytes:
+                    description: SizeBytes of the stored content.
+                    format: int64
+                    type: integer
+                required:
+                - backend
+                - key
+                type: object
+              redacted:
+                description: |-
+                  Redacted is true when any sensitive value was stripped from Content.
+                  Always serialized (no omitempty) so "false" is explicit, not absent.
+                type: boolean
+              redactions:
+                description: |-
+                  Redactions lists every field whose value was stripped before storage,
+                  with a hash so diffs can show "value changed" without the value.
+                items:
+                  description: |-
+                    RedactionEntry records a single field whose value was redacted at capture
+                    time. The Hash lets a diff truthfully show "value changed (a1b2 -> c3d4)"
+                    without ever storing or revealing the value itself.
+                  properties:
+                    fieldPath:
+                      description: |-
+                        FieldPath is an RFC 6901 JSON Pointer to the redacted field, e.g.
+                        "/data/tls.key" or "/spec/template/spec/containers/0/env/2/value". A
+                        pointer rather than a dotted path because ConfigMap keys and annotation
+                        keys routinely contain dots and slashes.
+                      type: string
+                    hash:
+                      description: |-
+                        Hash is a keyed digest (HMAC) of the redacted value, so two snapshots can
+                        show that a withheld value changed without either revealing it. It is
+                        not a plain hash of the value: that would let anyone who can read a
+                        snapshot test guesses against it. Empty if the field was absent, or was
+                        removed rather than blanked.
+                      type: string
+                    keyId:
+                      description: |-
+                        KeyID identifies the key the hash was made under. Hashes are only
+                        comparable when their KeyIDs match; after a key rotation, older
+                        snapshots' hashes cannot be compared with newer ones.
+                      type: string
+                    reason:
+                      description: Reason categorizes why the field was redacted.
+                      enum:
+                      - secret-data
+                      - dockerconfig
+                      - serviceaccount-token
+                      - sensitive-pattern
+                      - last-applied
+                      - policy
+                      type: string
+                  required:
+                  - fieldPath
+                  - reason
+                  type: object
+                type: array
+              revertable:
+                description: |-
+                  Revertable indicates whether this snapshot alone is sufficient to restore
+                  the object. False when redaction removed values required to fully
+                  reconstruct it (e.g. a Secret's data) — such reverts need manual steps.
+                  Always serialized (no omitempty) so "false" is explicit, not absent.
+                type: boolean
+              target:
+                description: Target is the object this snapshot captures.
+                properties:
+                  apiVersion:
+                    description: APIVersion of the target object, e.g. "apps/v1" or
+                      "v1".
+                    type: string
+                  kind:
+                    description: Kind of the target object, e.g. "Deployment".
+                    type: string
+                  name:
+                    description: Name of the target object.
+                    type: string
+                  namespace:
+                    description: Namespace of the target object. Empty for cluster-scoped
+                      objects.
+                    type: string
+                  resourceVersion:
+                    description: ResourceVersion of the target at the moment referenced.
+                    type: string
+                  uid:
+                    description: |-
+                      UID pins the target's identity across delete/recreate cycles, so a
+                      timeline can distinguish "the same object edited" from "deleted and a new
+                      one created with the same name".
+                    type: string
+                required:
+                - apiVersion
+                - kind
+                - name
+                type: object
+            required:
+            - capturedAt
+            - target
+            type: object
+            x-kubernetes-validations:
+            - message: a ResourceSnapshot is immutable
+              rule: self == oldSelf
+          status:
+            description: ResourceSnapshotStatus defines the observed state of ResourceSnapshot.
+            properties:
+              sizeBytes:
+                description: |-
+                  SizeBytes is the serialized size of the stored content, for retention
+                  accounting.
+                format: int64
+                type: integer
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

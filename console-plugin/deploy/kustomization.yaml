@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Deploy the Chronos console plugin. After applying, enable it in the console:
+#   oc patch consoles.operator.openshift.io cluster --type=json \
+#     -p '[{"op":"add","path":"/spec/plugins/-","value":"chronos"}]'
+resources:
+  - configmap.yaml
+  - service.yaml
+  - deployment.yaml
+  - consoleplugin.yaml
+
+# Point this at your own registry/tag to deploy an image you built.
+# Override without editing:
+#   cd console-plugin/deploy && kustomize edit set image \
+#     quay.io/bjozsa-redhat/chronos-console-plugin=REGISTRY/chronos-console-plugin:TAG
+images:
+  - name: quay.io/bjozsa-redhat/chronos-console-plugin
+    newTag: latest

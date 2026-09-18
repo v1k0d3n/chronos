@@ -1,0 +1,35 @@
+# ── RBAC ───────────────────────────────────────────────────────────────────
+# A ServiceAccount + Role + RoleBinding for the storefront. RBAC changes are
+# classified HIGH risk by Chronos, so granting someone new access stands out on
+# the timeline — the "who can touch production" demo beat.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: storefront
+  labels:
+    app.kubernetes.io/part-of: acme-storefront
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: storefront-editor
+  labels:
+    app.kubernetes.io/part-of: acme-storefront
+rules:
+  - apiGroups: ["", "apps"]
+    resources: ["configmaps", "deployments", "services"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: storefront-editors
+  labels:
+    app.kubernetes.io/part-of: acme-storefront
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: storefront-editor
+subjects:
+  - kind: ServiceAccount
+    name: storefront

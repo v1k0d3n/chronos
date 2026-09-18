@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server
+  labels:
+    app.kubernetes.io/name: chronos
+    app.kubernetes.io/component: mcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: chronos
+      app.kubernetes.io/component: mcp-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: chronos
+        app.kubernetes.io/component: mcp-server
+    spec:
+      serviceAccountName: mcp-server
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mcp-server
+          # The public image. Point this somewhere else with a kustomize overlay
+          # rather than by editing this file — see config/overlays/README.md.
+          # If your registry needs credentials, the overlay is also where the
+          # pull secret gets attached: the kubelet authenticates separately from
+          # whatever pushed the image, so push credentials alone are not enough.
+          image: quay.io/bjozsa-redhat/chronos-mcp-server:latest
+          args:
+            - --address=:8443
+            - --tls-cert-path=/etc/chronos/serving-certs
+            # Callers use tokens minted for this audience, worthless anywhere
+            # else; the server acts as them by impersonation. To also accept
+            # general API server tokens (`oc whoami -t`), add
+            # --allow-unscoped-tokens -- and understand that such a token is a
+            # cluster credential you are handing to this server.
+            - --token-audience=chronos-mcp
+          ports:
+            - name: mcp
+              containerPort: 8443
+          volumeMounts:
+            - name: serving-certs
+              mountPath: /etc/chronos/serving-certs
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: mcp
+              scheme: HTTPS
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: mcp
+              scheme: HTTPS
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: serving-certs
+          secret:
+            secretName: mcp-server-cert
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-server
+  labels:
+    app.kubernetes.io/name: chronos
+    app.kubernetes.io/component: mcp-server
+  annotations:
+    # OpenShift's service-ca mints and rotates the serving certificate.
+    service.beta.openshift.io/serving-cert-secret-name: mcp-server-cert
+spec:
+  selector:
+    app.kubernetes.io/name: chronos
+    app.kubernetes.io/component: mcp-server
+  ports:
+    - name: mcp
+      port: 8443
+      targetPort: mcp

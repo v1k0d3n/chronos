@@ -1,0 +1,21 @@
+apiVersion: chronos.ocp.run/v1alpha1
+kind: RevertOperation
+metadata:
+  labels:
+    app.kubernetes.io/name: chronos
+    app.kubernetes.io/managed-by: kustomize
+  name: revert-payments-scale-down
+spec:
+  target:
+    apiVersion: apps/v1
+    kind: Deployment
+    namespace: team-a
+    name: payments
+  # Undo the change recorded by this ChangeEvent (restores its beforeSnapshot,
+  # deployment-payments-48209 -> replicas: 3).
+  changeEventRef: deployment-payments-scale-down-48210
+  # Auto: server-side apply unless an immutable field differs, then escalate.
+  strategy: Auto
+  # Start as a dry run so the SA can review the diff before committing.
+  dryRun: true
+  force: false

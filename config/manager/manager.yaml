@@ -1,0 +1,319 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    control-plane: controller-manager
+    app.kubernetes.io/name: chronos
+    app.kubernetes.io/managed-by: kustomize
+  name: system
+---
+# The watcher: observes the watched kinds and writes ChangeEvents and
+# ResourceSnapshots. It reads Secrets (to snapshot them, redacted) and can only
+# create records. It holds the redaction key.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: watcher
+  namespace: system
+  labels:
+    control-plane: controller-manager
+    app.kubernetes.io/name: chronos
+    chronos.ocp.run/role: watcher
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+      app.kubernetes.io/name: chronos
+      chronos.ocp.run/role: watcher
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        control-plane: controller-manager
+        app.kubernetes.io/name: chronos
+        chronos.ocp.run/role: watcher
+    spec:
+      # TODO(user): Uncomment the following code to configure the nodeAffinity expression
+      # according to the platforms which are supported by your solution.
+      # It is considered best practice to support multiple architectures. You can
+      # build your manager image using the makefile target docker-buildx.
+      # affinity:
+      #   nodeAffinity:
+      #     requiredDuringSchedulingIgnoredDuringExecution:
+      #       nodeSelectorTerms:
+      #         - matchExpressions:
+      #           - key: kubernetes.io/arch
+      #             operator: In
+      #             values:
+      #               - amd64
+      #               - arm64
+      #               - ppc64le
+      #               - s390x
+      #           - key: kubernetes.io/os
+      #             operator: In
+      #             values:
+      #               - linux
+      securityContext:
+        # Projects are configured by default to adhere to the "restricted" Pod Security Standards.
+        # This ensures that deployments meet the highest security requirements for Kubernetes.
+        # For more details, see: https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - command:
+        - /manager
+        args:
+          - --role=watcher
+          - --leader-elect
+          - --health-probe-bind-address=:8081
+          # Recommended on large clusters: scope the watch to specific namespaces
+          # so the informer caches stay small (cluster-wide over every Secret/
+          # ConfigMap is memory-heavy and can OOM). Empty/unset watches all.
+          # - --watch-namespaces=team-a,team-b,payments
+        image: quay.io/bjozsa-redhat/chronos-operator:latest
+        name: watcher
+        # env:
+        #   - name: CHRONOS_WATCH_NAMESPACES   # equivalent to --watch-namespaces
+        #     value: team-a,team-b,payments
+        ports: []
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - "ALL"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        # When watching cluster-wide, Chronos runs dynamic informers over every
+        # configmap, secret, deployment, RBAC object, etc. — the caches need real
+        # memory (the default 128Mi OOMKills at startup). On large clusters,
+        # scope the watch with --watch-namespaces (above) instead of raising this.
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 10m
+            memory: 256Mi
+        volumeMounts: []
+      volumes: []
+      serviceAccountName: watcher
+      terminationGracePeriodSeconds: 10
+---
+# The correlator: reads the kube-apiserver audit log through the node log
+# proxy and upgrades records' attribution to verified identities. nodes/proxy is
+# a broad permission, which is why this runs apart from anything that can
+# write cluster objects.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: correlator
+  namespace: system
+  labels:
+    control-plane: controller-manager
+    app.kubernetes.io/name: chronos
+    chronos.ocp.run/role: correlator
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+      app.kubernetes.io/name: chronos
+      chronos.ocp.run/role: correlator
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        control-plane: controller-manager
+        app.kubernetes.io/name: chronos
+        chronos.ocp.run/role: correlator
+    spec:
+      # TODO(user): Uncomment the following code to configure the nodeAffinity expression
+      # according to the platforms which are supported by your solution.
+      # It is considered best practice to support multiple architectures. You can
+      # build your manager image using the makefile target docker-buildx.
+      # affinity:
+      #   nodeAffinity:
+      #     requiredDuringSchedulingIgnoredDuringExecution:
+      #       nodeSelectorTerms:
+      #         - matchExpressions:
+      #           - key: kubernetes.io/arch
+      #             operator: In
+      #             values:
+      #               - amd64
+      #               - arm64
+      #               - ppc64le
+      #               - s390x
+      #           - key: kubernetes.io/os
+      #             operator: In
+      #             values:
+      #               - linux
+      securityContext:
+        # Projects are configured by default to adhere to the "restricted" Pod Security Standards.
+        # This ensures that deployments meet the highest security requirements for Kubernetes.
+        # For more details, see: https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - command:
+        - /manager
+        args:
+          - --role=correlator
+          - --leader-elect
+          - --health-probe-bind-address=:8081
+        image: quay.io/bjozsa-redhat/chronos-operator:latest
+        name: correlator
+        # env:
+        #   - name: CHRONOS_WATCH_NAMESPACES   # equivalent to --watch-namespaces
+        #     value: team-a,team-b,payments
+        ports: []
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - "ALL"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        # When watching cluster-wide, Chronos runs dynamic informers over every
+        # configmap, secret, deployment, RBAC object, etc. — the caches need real
+        # memory (the default 128Mi OOMKills at startup). On large clusters,
+        # scope the watch with --watch-namespaces (above) instead of raising this.
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 10m
+            memory: 128Mi
+        volumeMounts: []
+      volumes: []
+      serviceAccountName: correlator
+      terminationGracePeriodSeconds: 10
+---
+# The reverter: carries out RevertOperations and serves the admission webhook
+# that records who requested each one. It can write the kinds Chronos reverts,
+# and nothing else that the other two can.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reverter
+  namespace: system
+  labels:
+    control-plane: controller-manager
+    app.kubernetes.io/name: chronos
+    chronos.ocp.run/role: reverter
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+      app.kubernetes.io/name: chronos
+      chronos.ocp.run/role: reverter
+  replicas: 1
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        control-plane: controller-manager
+        app.kubernetes.io/name: chronos
+        chronos.ocp.run/role: reverter
+    spec:
+      # TODO(user): Uncomment the following code to configure the nodeAffinity expression
+      # according to the platforms which are supported by your solution.
+      # It is considered best practice to support multiple architectures. You can
+      # build your manager image using the makefile target docker-buildx.
+      # affinity:
+      #   nodeAffinity:
+      #     requiredDuringSchedulingIgnoredDuringExecution:
+      #       nodeSelectorTerms:
+      #         - matchExpressions:
+      #           - key: kubernetes.io/arch
+      #             operator: In
+      #             values:
+      #               - amd64
+      #               - arm64
+      #               - ppc64le
+      #               - s390x
+      #           - key: kubernetes.io/os
+      #             operator: In
+      #             values:
+      #               - linux
+      securityContext:
+        # Projects are configured by default to adhere to the "restricted" Pod Security Standards.
+        # This ensures that deployments meet the highest security requirements for Kubernetes.
+        # For more details, see: https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - command:
+        - /manager
+        args:
+          - --role=reverter
+          - --leader-elect
+          - --health-probe-bind-address=:8081
+        image: quay.io/bjozsa-redhat/chronos-operator:latest
+        name: reverter
+        # env:
+        #   - name: CHRONOS_WATCH_NAMESPACES   # equivalent to --watch-namespaces
+        #     value: team-a,team-b,payments
+        ports: []
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - "ALL"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        # When watching cluster-wide, Chronos runs dynamic informers over every
+        # configmap, secret, deployment, RBAC object, etc. — the caches need real
+        # memory (the default 128Mi OOMKills at startup). On large clusters,
+        # scope the watch with --watch-namespaces (above) instead of raising this.
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 128Mi
+        volumeMounts: []
+      volumes: []
+      serviceAccountName: reverter
+      terminationGracePeriodSeconds: 10

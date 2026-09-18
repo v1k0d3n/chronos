@@ -1,0 +1,84 @@
+# The ledger is written by Chronos alone.
+#
+# RBAC decides who may write ChangeEvents and ResourceSnapshots, and no shipped
+# role grants it to anyone but the operator. This policy holds even if someone
+# later binds a role that does: the API server refuses the write unless it comes
+# from the identities named in the parameters ConfigMap, whatever RBAC says --
+# and each identity may do only its own part: create, or update.
+#
+# It is tamper-*resistant*, not tamper-proof. A cluster-admin can remove this
+# binding — and that removal is itself an audited API call, which is the most
+# any in-cluster control can offer.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: ledger-writers
+spec:
+  failurePolicy: Fail
+  paramKind:
+    apiVersion: v1
+    kind: ConfigMap
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["chronos.ocp.run"]
+        apiVersions: ["*"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
+        # Status is a separate write path to the same records, so it is
+        # covered too: "reverted" is a claim about history like any other.
+        resources: ["changeevents", "changeevents/status", "resourcesnapshots", "resourcesnapshots/status"]
+  variables:
+    - name: prefix
+      expression: "'system:serviceaccount:' + params.data.namespace + ':'"
+    # The watcher is the only process that observes changes, so the only one
+    # that may create a record.
+    - name: watcher
+      expression: "variables.prefix + params.data.watcher"
+    # The correlator and the reverter learn things about a change after the
+    # fact -- who made it, that it was undone -- so they may update a record.
+    # What they may change within it is enforced by the CRD's own rules.
+    - name: enrichers
+      expression: "[variables.prefix + params.data.correlator, variables.prefix + params.data.reverter]"
+    # Namespace deletion and garbage collection are performed by kube-system
+    # controllers. Refusing them would leave namespaces stuck in Terminating.
+    - name: clusterJanitor
+      expression: >-
+        request.userInfo.username in [
+          'system:serviceaccount:kube-system:namespace-controller',
+          'system:serviceaccount:kube-system:generic-garbage-collector'
+        ]
+  validations:
+    - expression: >-
+        (request.operation == 'CREATE' && request.userInfo.username == variables.watcher) ||
+        (request.operation == 'UPDATE' && request.userInfo.username in variables.enrichers) ||
+        (request.operation == 'DELETE' && variables.clusterJanitor)
+      messageExpression: >-
+        "Chronos records are written only by Chronos (created by " + variables.watcher +
+        ", updated by " + variables.enrichers.join(", ") + "); " +
+        request.userInfo.username + " may not " + string(request.operation).lowerAscii() + " them"
+      reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: ledger-writers
+spec:
+  policyName: ledger-writers
+  validationActions: ["Deny"]
+  paramRef:
+    name: ledger-writers
+    namespace: system
+    parameterNotFoundAction: Deny
+---
+# Names the one identity allowed to write the ledger. Filled in by kustomize
+# from the operator's ServiceAccount (see ../default/kustomization.yaml), so it
+# cannot drift from the identity the operator actually runs as.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ledger-writers
+  namespace: system
+data:
+  namespace: system
+  watcher: watcher
+  correlator: correlator
+  reverter: reverter

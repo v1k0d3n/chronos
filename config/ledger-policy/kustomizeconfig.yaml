@@ -1,0 +1,14 @@
+# The binding refers to its parameters ConfigMap by name and namespace; teach
+# kustomize so namePrefix and namespace apply there too.
+nameReference:
+- kind: ConfigMap
+  version: v1
+  fieldSpecs:
+  - kind: ValidatingAdmissionPolicyBinding
+    group: admissionregistration.k8s.io
+    path: spec/paramRef/name
+namespace:
+- kind: ValidatingAdmissionPolicyBinding
+  group: admissionregistration.k8s.io
+  path: spec/paramRef/namespace
+  create: true

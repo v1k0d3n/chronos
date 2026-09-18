@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo-chronos
+  labels:
+    app.kubernetes.io/part-of: acme-storefront
+    # A friendly display name in the OpenShift console.
+  annotations:
+    openshift.io/display-name: "Acme Storefront (Chronos demo)"

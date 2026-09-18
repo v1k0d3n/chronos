@@ -1,0 +1,37 @@
+apiVersion: chronos.ocp.run/v1alpha1
+kind: ChangeEvent
+metadata:
+  labels:
+    app.kubernetes.io/name: chronos
+    app.kubernetes.io/managed-by: kustomize
+    # These labels let the timeline backend list/filter without parsing spec.
+    chronos.ocp.run/target-kind: Deployment
+    chronos.ocp.run/target-namespace: team-a
+  name: deployment-payments-scale-down-48210
+spec:
+  observedAt: "2026-07-01T13:22:04Z"
+  verb: update
+  source: correlated
+  riskLevel: high
+  summary: "spec.replicas 3 -> 0 (workload scaled to zero)"
+  changedFields:
+    - spec.replicas
+  target:
+    apiVersion: apps/v1
+    kind: Deployment
+    namespace: team-a
+    name: payments
+    uid: 6f1c9e0a-2b7d-4a1e-9c33-1f2a4b6c8d0e
+    resourceVersion: "48210"
+  actor:
+    username: alice
+    groups:
+      - system:authenticated
+      - team-a-admins
+    sourceIP: 10.128.2.14
+    userAgent: oc/4.22.0
+    confidence: verified
+    shared: false
+  beforeSnapshot: deployment-payments-48209
+  afterSnapshot: deployment-payments-48210
+  redacted: false

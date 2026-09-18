@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: chronos-console-plugin
+  namespace: chronos-system
+  labels:
+    app: chronos-console-plugin
+    app.kubernetes.io/part-of: chronos
+  annotations:
+    # Ask OpenShift's service-ca to mint a TLS serving cert into this secret.
+    service.alpha.openshift.io/serving-cert-secret-name: chronos-console-plugin-cert
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: 9443-tcp
+      protocol: TCP
+      port: 9443
+      targetPort: 9443
+  selector:
+    app: chronos-console-plugin

@@ -1,0 +1,41 @@
+# Example deployment overlay. Copy this directory, do not edit it in place:
+#
+#   cp -r config/overlays/example config/overlays/lab
+#
+# The copy is ignored by git. See ../README.md.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ../../default                      # CRDs, RBAC, the operator
+- ../../mcp-server                   # optional: delete this line to leave it out
+- ../../../console-plugin/deploy     # optional: needs OpenShift 4.22+
+
+# Point each component at the images you built. `name` must match the image the
+# base manifests use; only newName / newTag / digest are yours to change.
+# For anything long-lived, pin `digest:` instead of `newTag:` so a rollback names
+# an exact artifact.
+images:
+- name: quay.io/bjozsa-redhat/chronos-operator
+  newName: registry.example.com/chronos/chronos-operator
+  newTag: latest
+- name: quay.io/bjozsa-redhat/chronos-mcp-server
+  newName: registry.example.com/chronos/chronos-mcp-server
+  newTag: latest
+- name: quay.io/bjozsa-redhat/chronos-console-plugin
+  newName: registry.example.com/chronos/chronos-console-plugin
+  newTag: latest
+
+# Only needed when the registry above requires credentials. Attaches an existing
+# pull secret to every Chronos Deployment. Create the secret yourself first:
+#
+#   oc -n chronos-system create secret docker-registry my-registry-pull-secret \
+#     --docker-server=registry.example.com --docker-username=... --docker-password=...
+patches:
+- target:
+    kind: Deployment
+  patch: |-
+    - op: add
+      path: /spec/template/spec/imagePullSecrets
+      value:
+      - name: my-registry-pull-secret
