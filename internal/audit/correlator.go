@@ -687,12 +687,12 @@ func indexKey(resource, namespace, name, verb string) string {
 // while oc replace issues PUT; both are "update" changes on the timeline.
 func normalizeVerb(v string) string {
 	switch v {
-	case "create":
-		return "create"
-	case "update", "patch":
-		return "update"
-	case "delete":
-		return "delete"
+	case string(chronosv1alpha1.VerbCreate):
+		return string(chronosv1alpha1.VerbCreate)
+	case string(chronosv1alpha1.VerbUpdate), string(chronosv1alpha1.VerbPatch):
+		return string(chronosv1alpha1.VerbUpdate)
+	case string(chronosv1alpha1.VerbDelete):
+		return string(chronosv1alpha1.VerbDelete)
 	default:
 		return ""
 	}

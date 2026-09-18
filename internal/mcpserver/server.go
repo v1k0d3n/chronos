@@ -27,6 +27,9 @@ import (
 // Version is reported to clients during the MCP handshake.
 const Version = "v1alpha1"
 
+// serverName is how the server identifies itself in the MCP handshake.
+const serverName = "chronos-mcp"
+
 // changesInWindowDescription is what an agent reads when deciding whether to
 // reach for this tool. It leads with the question the tool answers, because
 // selection happens on this text alone.
@@ -58,7 +61,7 @@ to a withheld field is visible as having occurred without exposing its value.`
 // NewMCPServer builds the MCP server and registers the Chronos tools.
 func NewMCPServer(s *Server) *mcp.Server {
 	srv := mcp.NewServer(&mcp.Implementation{
-		Name:    "chronos-mcp",
+		Name:    serverName,
 		Title:   "Chronos change timeline",
 		Version: Version,
 	}, nil)

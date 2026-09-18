@@ -109,16 +109,22 @@ func Compute(old, new map[string]interface{}) Result {
 	return Result{ChangedFields: fields, Changes: structured, Summary: summarize(changes)}
 }
 
+// Top-level fields with special handling in a diff.
+const (
+	statusField   = "status"
+	metadataField = "metadata"
+)
+
 // normalize returns a shallow-ish copy of obj with server-managed noise
 // removed, so it does not pollute the diff.
 func normalize(obj map[string]interface{}) map[string]interface{} {
 	out := make(map[string]interface{}, len(obj))
 	for k, v := range obj {
 		switch k {
-		case "status":
+		case statusField:
 			// Status is controller-owned observed state, not a user change.
 			continue
-		case "metadata":
+		case metadataField:
 			if m, ok := v.(map[string]interface{}); ok {
 				out[k] = normalizeMetadata(m)
 				continue

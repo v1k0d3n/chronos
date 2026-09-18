@@ -41,6 +41,10 @@ import (
 // The right question is: who owns the fields that changed? That is what these
 // functions answer.
 
+// statusSubresource marks managedFields entries written through the status
+// subresource, which say nothing about who changed the spec.
+const statusSubresource = "status"
+
 // owners maps a field manager's name to how many of the changed fields it owns.
 type owners map[string]int
 
@@ -61,16 +65,17 @@ func managersOfChange(u *unstructured.Unstructured, changes []diff.Change) owner
 		// belong to whoever set them); the two look the same. So the most
 		// specific claim wins: if anyone owns the field more deeply, a
 		// shallower claim is taken to be existence only.
-		best, deepest := []string(nil), -1
+		var best []string
+		deepest := -1
 		for _, s := range sets {
-			if depth, ok := owns(s.set, u.Object, c.Path); ok {
-				switch {
-				case depth > deepest:
-					best, deepest = []string{s.manager}, depth
-				case depth == deepest:
-					best = append(best, s.manager)
-				}
+			depth, ok := owns(s.set, u.Object, c.Path)
+			if !ok || depth < deepest {
+				continue
 			}
+			if depth > deepest {
+				best, deepest = best[:0], depth
+			}
+			best = append(best, s.manager)
 		}
 		for _, m := range best {
 			out[m]++
@@ -88,7 +93,7 @@ func creatorOf(u *unstructured.Unstructured) (string, bool) {
 	fields := u.GetManagedFields()
 	for i := range fields {
 		e := fields[i]
-		if e.Subresource == "status" || !mutating(e.Operation) {
+		if e.Subresource == statusSubresource || !mutating(e.Operation) {
 			continue
 		}
 		if best == nil || earlierThan(e.Time, best.Time) {
@@ -142,7 +147,7 @@ type ownedSet struct {
 func ownedSets(u *unstructured.Unstructured) []ownedSet {
 	var out []ownedSet
 	for _, e := range u.GetManagedFields() {
-		if e.Subresource == "status" || !mutating(e.Operation) || e.FieldsV1 == nil {
+		if e.Subresource == statusSubresource || !mutating(e.Operation) || e.FieldsV1 == nil {
 			continue
 		}
 		s := &fieldpath.Set{}

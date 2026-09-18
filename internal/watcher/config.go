@@ -16,7 +16,10 @@ limitations under the License.
 
 package watcher
 
-import "k8s.io/apimachinery/pkg/runtime/schema"
+import (
+	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+)
 
 // DefaultResources is the curated set of resource types Chronos watches out of
 // the box. It targets the objects customers most often change to break or
@@ -38,10 +41,10 @@ func DefaultResources() []schema.GroupVersionResource {
 		{Group: "", Version: "v1", Resource: "serviceaccounts"},
 
 		// RBAC — high-value for "who granted themselves what".
-		{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "roles"},
-		{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "rolebindings"},
-		{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
-		{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterrolebindings"},
+		{Group: rbacv1.GroupName, Version: "v1", Resource: "roles"},
+		{Group: rbacv1.GroupName, Version: "v1", Resource: "rolebindings"},
+		{Group: rbacv1.GroupName, Version: "v1", Resource: "clusterroles"},
+		{Group: rbacv1.GroupName, Version: "v1", Resource: "clusterrolebindings"},
 
 		// Network policy.
 		{Group: "networking.k8s.io", Version: "v1", Resource: "networkpolicies"},

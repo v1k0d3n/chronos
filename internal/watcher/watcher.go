@@ -149,6 +149,10 @@ func secretTypeOf(u *unstructured.Unstructured) string {
 	return t
 }
 
+// kubeControllerManager is the field manager and username of the built-in
+// controllers, which are bookkeeping by definition.
+const kubeControllerManager = "kube-controller-manager"
+
 // isControllerActor reports whether an actor name looks like a controller or
 // operator rather than a human client. It keys off naming convention, not
 // specific component names, so it works on any cluster version. Human clients
@@ -158,7 +162,7 @@ func isControllerActor(username string) bool {
 		return false
 	}
 	u := strings.ToLower(username)
-	return u == "kube-controller-manager" ||
+	return u == kubeControllerManager ||
 		strings.Contains(u, "controller") ||
 		strings.Contains(u, "operator")
 }
@@ -542,7 +546,7 @@ func latestWriter(u *unstructured.Unstructured) (string, bool) {
 	fields := u.GetManagedFields()
 	for i := range fields {
 		e := fields[i]
-		if e.Subresource == "status" || !mutating(e.Operation) {
+		if e.Subresource == statusSubresource || !mutating(e.Operation) {
 			continue
 		}
 		if best == nil || laterThan(e.Time, best.Time) {

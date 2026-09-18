@@ -86,7 +86,8 @@ func TestRedact_HashesAreKeyed(t *testing.T) {
 	k1, k2 := NewKey([]byte("first-installation-key-material!")), NewKey([]byte("other-installation-key-material!"))
 
 	// Same key, same value: comparable across snapshots.
-	if k1.hash("c3VwZXItc2VjcmV0") != k1.hash("c3VwZXItc2VjcmV0") {
+	first, again := k1.hash("c3VwZXItc2VjcmV0"), k1.hash("c3VwZXItc2VjcmV0")
+	if first != again {
 		t.Error("hash not deterministic under one key")
 	}
 	if k1.hash("one") == k1.hash("two") {

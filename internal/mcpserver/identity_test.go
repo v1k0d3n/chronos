@@ -18,9 +18,10 @@ package mcpserver
 
 import (
 	"context"
-	"k8s.io/client-go/rest"
 	"strings"
 	"testing"
+
+	"k8s.io/client-go/rest"
 
 	"github.com/modelcontextprotocol/go-sdk/auth"
 	authnv1 "k8s.io/api/authentication/v1"

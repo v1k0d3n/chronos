@@ -26,14 +26,15 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/go-logr/logr"
-	chronosv1alpha1 "github.com/v1k0d3n/chronos/api/v1alpha1"
 	"io"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+
+	"github.com/go-logr/logr"
+	chronosv1alpha1 "github.com/v1k0d3n/chronos/api/v1alpha1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 // humanUser is the identity the audit fixtures use for a person at a terminal.

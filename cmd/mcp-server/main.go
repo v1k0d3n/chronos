@@ -78,7 +78,8 @@ func main() {
 	)
 	flag.StringVar(&addr, "address", ":8443", "Address to serve MCP over streamable HTTP.")
 	flag.StringVar(&certPath, "tls-cert-path", "", "Directory holding the serving certificate and key. "+
-		"Required unless --insecure-http is set: callers send bearer tokens, and those must not cross the network in the clear.")
+		"Required unless --insecure-http is set: callers send bearer tokens, "+
+		"and those must not cross the network in the clear.")
 	flag.StringVar(&certName, "tls-cert-name", "tls.crt", "Certificate file name within --tls-cert-path.")
 	flag.StringVar(&keyName, "tls-key-name", "tls.key", "Key file name within --tls-cert-path.")
 	flag.BoolVar(&insecureHTTP, "insecure-http", false, "Serve plain HTTP. For local development only.")
@@ -222,7 +223,8 @@ func main() {
 	}()
 
 	log.Info("serving MCP over streamable HTTP",
-		"address", addr, "path", "/mcp", "tls", certPath != "", "identity", provider.Describe(), "audiences", audiences.String())
+		"address", addr, "path", "/mcp", "tls", certPath != "",
+		"identity", provider.Describe(), "audiences", audiences.String())
 	if err := serve(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Error(err, "server failed")
 		os.Exit(1)

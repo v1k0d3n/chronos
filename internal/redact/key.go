@@ -77,7 +77,7 @@ func EphemeralKey() *Key {
 // hash returns the short HMAC of a value under this key.
 func (k *Key) hash(v interface{}) string {
 	mac := hmac.New(sha256.New, k.secret)
-	mac.Write([]byte(fmt.Sprintf("%v", v)))
+	_, _ = fmt.Fprintf(mac, "%v", v)
 	return hex.EncodeToString(mac.Sum(nil))[:12]
 }
 

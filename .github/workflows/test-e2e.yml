@@ -1,8 +1,12 @@
 name: E2E Tests
 
+# On demand for now. The suite runs on a Kind cluster, and the default
+# manifests get their certificates from OpenShift's service-ca, which Kind
+# does not have: the reverter's webhook certificate is never minted and the
+# pod never starts. Until a cert-manager path exists for non-OpenShift
+# clusters, running this on every push would only ever be red.
 on:
-  push:
-  pull_request:
+  workflow_dispatch:
 
 # Nothing here writes to the repository; say so, or the default token could.
 permissions:

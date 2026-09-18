@@ -40,6 +40,10 @@ import (
 // server-side apply.
 const fieldManager = "chronos-revert"
 
+// confidenceLabel is the label the watcher and correlator keep in step with
+// spec.actor.confidence, so the correlator can select unverified records.
+const confidenceLabel = "chronos.ocp.run/confidence"
+
 // RevertOperationReconciler reconciles a RevertOperation object by restoring a
 // target object to a prior ResourceSnapshot via server-side apply.
 type RevertOperationReconciler struct {
@@ -117,35 +121,9 @@ func (r *RevertOperationReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		return r.fail(ctx, ro, "this RevertOperation does not record who requested it, so it cannot be authorized")
 	}
 
-	// Resolve which snapshot to restore to.
-	snapshotName := ro.Spec.ToSnapshot
-	if snapshotName == "" && ro.Spec.ChangeEventRef != "" {
-		ce := &chronosv1alpha1.ChangeEvent{}
-		if err := r.Get(ctx, client.ObjectKey{Namespace: ro.Namespace, Name: ro.Spec.ChangeEventRef}, ce); err != nil {
-			return r.fail(ctx, ro, fmt.Sprintf("resolving changeEventRef: %v", err))
-		}
-		if !sameObject(ce.Spec.Target, ro.Spec.Target) {
-			return r.fail(ctx, ro, fmt.Sprintf("ChangeEvent %q records a change to %s, not to the requested target %s",
-				ce.Name, describe(ce.Spec.Target), describe(ro.Spec.Target)))
-		}
-		snapshotName = ce.Spec.BeforeSnapshot
-	}
-	if snapshotName == "" {
-		return r.fail(ctx, ro, "no snapshot to revert to (set toSnapshot or a changeEventRef with a beforeSnapshot)")
-	}
-
-	snap := &chronosv1alpha1.ResourceSnapshot{}
-	if err := r.Get(ctx, client.ObjectKey{Namespace: ro.Namespace, Name: snapshotName}, snap); err != nil {
-		return r.fail(ctx, ro, fmt.Sprintf("loading snapshot %q: %v", snapshotName, err))
-	}
-	if snap.Spec.Content == nil || len(snap.Spec.Content.Raw) == 0 {
-		return r.fail(ctx, ro, "snapshot has no stored content")
-	}
-
-	// Reconstruct the prior object from the snapshot.
-	obj := &unstructured.Unstructured{}
-	if err := json.Unmarshal(snap.Spec.Content.Raw, &obj.Object); err != nil {
-		return r.fail(ctx, ro, fmt.Sprintf("decoding snapshot content: %v", err))
+	snap, obj, refusal := r.loadSnapshot(ctx, ro)
+	if refusal != "" {
+		return r.fail(ctx, ro, refusal)
 	}
 
 	// Is what we are about to apply the thing that was asked for?
@@ -176,29 +154,7 @@ func (r *RevertOperationReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 
 	sanitizeForApply(obj)
 
-	// A redacted value was never stored, so it cannot be restored — and it must
-	// not be overwritten with the blank that stands in for it. Each redacted
-	// field is left out of the apply entirely: server-side apply leaves fields
-	// it is not given exactly as they are, so the live value survives and the
-	// rest of the object is still reverted. The person is told which fields
-	// they have to deal with themselves.
-	var manualSteps []string
-	for _, red := range snap.Spec.Redactions {
-		if red.Reason == chronosv1alpha1.RedactionLastApplied {
-			continue // removed at capture; nothing to leave out
-		}
-		if redact.Remove(obj.Object, red.FieldPath) {
-			manualSteps = append(manualSteps, fmt.Sprintf(
-				"%s was redacted at capture and has not been restored; its live value was left as it is.", red.FieldPath))
-		}
-	}
-	if snap.Spec.Redacted && len(snap.Spec.Redactions) == 0 {
-		// A snapshot from before redactions were itemised: fall back to the
-		// only thing it could have redacted.
-		unstructured.RemoveNestedField(obj.Object, "data")
-		unstructured.RemoveNestedField(obj.Object, "stringData")
-		manualSteps = append(manualSteps, "Redacted values were not restored; re-supply them manually.")
-	}
+	manualSteps := leaveRedactedFieldsAlone(snap, obj)
 
 	// ForceOwnership is not optional here. A revert exists to put back values
 	// that some other field manager — kubectl, the console, a controller — wrote
@@ -248,13 +204,79 @@ func (r *RevertOperationReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 	}
 	if ro.Spec.DryRun {
 		ro.Status.Message = fmt.Sprintf("Dry run: would revert %s/%s to snapshot %s (no changes applied)",
-			ro.Spec.Target.Kind, ro.Spec.Target.Name, snapshotName)
+			ro.Spec.Target.Kind, ro.Spec.Target.Name, snap.Name)
 	} else {
 		ro.Status.Message = fmt.Sprintf("Reverted %s/%s to snapshot %s via server-side apply",
-			ro.Spec.Target.Kind, ro.Spec.Target.Name, snapshotName)
+			ro.Spec.Target.Kind, ro.Spec.Target.Name, snap.Name)
 	}
-	log.Info("revert applied", "requester", who.Username, "target", ro.Spec.Target.Name, "snapshot", snapshotName, "dryRun", ro.Spec.DryRun)
+	log.Info("revert applied", "requester", who.Username, "target", ro.Spec.Target.Name, "snapshot", snap.Name, "dryRun", ro.Spec.DryRun)
 	return ctrl.Result{}, r.Status().Update(ctx, ro)
+}
+
+// loadSnapshot resolves which snapshot the request names, loads it, and
+// decodes the object it holds. A non-empty refusal is the reason to fail the
+// request.
+func (r *RevertOperationReconciler) loadSnapshot(ctx context.Context, ro *chronosv1alpha1.RevertOperation) (
+	snap *chronosv1alpha1.ResourceSnapshot, obj *unstructured.Unstructured, refusal string,
+) {
+	snapshotName := ro.Spec.ToSnapshot
+	if snapshotName == "" && ro.Spec.ChangeEventRef != "" {
+		ce := &chronosv1alpha1.ChangeEvent{}
+		if err := r.Get(ctx, client.ObjectKey{Namespace: ro.Namespace, Name: ro.Spec.ChangeEventRef}, ce); err != nil {
+			return nil, nil, fmt.Sprintf("resolving changeEventRef: %v", err)
+		}
+		if !sameObject(ce.Spec.Target, ro.Spec.Target) {
+			return nil, nil, fmt.Sprintf("ChangeEvent %q records a change to %s, not to the requested target %s",
+				ce.Name, describe(ce.Spec.Target), describe(ro.Spec.Target))
+		}
+		snapshotName = ce.Spec.BeforeSnapshot
+	}
+	if snapshotName == "" {
+		return nil, nil, "no snapshot to revert to (set toSnapshot or a changeEventRef with a beforeSnapshot)"
+	}
+
+	snap = &chronosv1alpha1.ResourceSnapshot{}
+	if err := r.Get(ctx, client.ObjectKey{Namespace: ro.Namespace, Name: snapshotName}, snap); err != nil {
+		return nil, nil, fmt.Sprintf("loading snapshot %q: %v", snapshotName, err)
+	}
+	if snap.Spec.Content == nil || len(snap.Spec.Content.Raw) == 0 {
+		return nil, nil, "snapshot has no stored content"
+	}
+
+	obj = &unstructured.Unstructured{}
+	if err := json.Unmarshal(snap.Spec.Content.Raw, &obj.Object); err != nil {
+		return nil, nil, fmt.Sprintf("decoding snapshot content: %v", err)
+	}
+	return snap, obj, ""
+}
+
+// leaveRedactedFieldsAlone removes every redacted field from the object that
+// is about to be applied, and returns what to tell the person.
+//
+// A redacted value was never stored, so it cannot be restored — and it must
+// not be overwritten with the blank that stands in for it. Each redacted field
+// is left out of the apply entirely: server-side apply leaves fields it is not
+// given exactly as they are, so the live value survives and the rest of the
+// object is still reverted.
+func leaveRedactedFieldsAlone(snap *chronosv1alpha1.ResourceSnapshot, obj *unstructured.Unstructured) []string {
+	var manualSteps []string
+	for _, red := range snap.Spec.Redactions {
+		if red.Reason == chronosv1alpha1.RedactionLastApplied {
+			continue // removed at capture; nothing to leave out
+		}
+		if redact.Remove(obj.Object, red.FieldPath) {
+			manualSteps = append(manualSteps, fmt.Sprintf(
+				"%s was redacted at capture and has not been restored; its live value was left as it is.", red.FieldPath))
+		}
+	}
+	if snap.Spec.Redacted && len(snap.Spec.Redactions) == 0 {
+		// A snapshot from before redactions were itemised: fall back to the
+		// only thing it could have redacted.
+		unstructured.RemoveNestedField(obj.Object, "data")
+		unstructured.RemoveNestedField(obj.Object, "stringData")
+		manualSteps = append(manualSteps, "Redacted values were not restored; re-supply them manually.")
+	}
+	return manualSteps
 }
 
 // attributeResult waits for the watcher to record the apply, then credits it
@@ -294,7 +316,7 @@ func (r *RevertOperationReconciler) attributeResult(ctx context.Context, ro *chr
 	}
 	patch := map[string]any{
 		"metadata": map[string]any{"labels": map[string]any{
-			"chronos.ocp.run/confidence": string(chronosv1alpha1.AttributionVerified),
+			confidenceLabel: string(chronosv1alpha1.AttributionVerified),
 		}},
 		"spec": map[string]any{
 			"actor":  actor,
